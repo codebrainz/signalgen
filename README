@@ -9,7 +9,7 @@ This program requires:
 
 Example usage:
 
-signalgen -f 200 -v 0.5 -w 2 -V
+signalgen -f 200 -v 0.5 -w triangle -V
 
 Help Message:
 
