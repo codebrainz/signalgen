@@ -15,16 +15,16 @@ Help Message:
 
 Usage: signalgen [options]
 
-Values for wave are; sine=0, square=1, saw=2, triangle=3, silence=4,
-white_noise=4, pink_noise=6, sine_table=7, ticks=8.  You can adjust the
-waveform properties at runtime by using the following keys; up/down=volume,
+Values for wave must be one of: sine, square, saw, triangle, silence, white-
+noise, pink-noise, sine-table, ticks, gaussian-noise.  You can adjust the
+waveform  properties at runtime by using the following keys; up/down=volume,
 left/right=frequency, page up/page down=waveform.
 
 Options:
   -h, --help            show this help message and exit
   -f FREQ, --freq=FREQ  frequency of signal from 0-20000, default 440
   -v VOL, --volume=VOL  volume of signal from 0-1, default 0.8
-  -w WAVE, --wave=WAVE  oscillator waveform from 0-8, default 0
+  -w WAVE, --wave=WAVE  oscillator waveform name, default 'sine'
   -c, --stdout          outputs waveforms to stdout, default off
   -V, --visualize       enable an X oscilloscope window, default off
   -a, --audio           enable audio output, default on
