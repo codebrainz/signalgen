@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # audiogen.py
 # 
@@ -19,60 +19,71 @@
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA 02110-1301, USA.
 
-from optparse import OptionParser
-from signalgen import SignalGen
+#TODO: - close down pipeline and exit when video window is closed, or at least
+#        don't stop audio when it's closed.
+
 import sys
-import gst
-import time
-import warnings
+from optparse import OptionParser
+from urwid import raw_display
+from waveforms import WAVEFORMS
 
-# do this to hide a deprection warning on using the popen2 module in urwid
-with warnings.catch_warnings():
-    warnings.simplefilter('ignore', DeprecationWarning)
-    from urwid import raw_display
+# moved to main() function, see note
+#from signalgen import SignalGen
 
-def main():
+VOLUME_GRANULARITY  = 0.01      # 0 - 1
+FREQ_GRANULARITY    = 10        # 1 - 20000
 
-    VOLUME_GRANULARITY = 0.01   # 0 - 1
-    FREQ_GRANULARITY = 10       # 1 - 20000
-    
-    epilog = 'Written by Matthew Brush'
-    desc = 'Values for wave are; sine=0, square=1, saw=2, triangle=3, \
-silence=4, white_noise=4, pink_noise=6, sine_table=7, ticks=8.  You can adjust \
-the waveform properties at runtime by using the following keys; up/down=volume, \
-left/right=frequency, page up/page down=waveform.'
-    
-    parser = OptionParser(description=desc, epilog=epilog)
+def parse_arguments():
+
+    desc = """Values for wave must be one of: %s.  You can adjust the waveform 
+properties at runtime by using the following keys; up/down=volume, 
+left/right=frequency, page up/page down=waveform.""" % ", ".join(WAVEFORMS)
+
+    parser = OptionParser(description=desc, epilog="Written by Matthew Brush.")
     
     parser.add_option('-f', '--freq', dest='freq', metavar='FREQ', 
-        default='440', help='frequency of signal from 0-20000, default 440')
+        action="store", type="int", default=440, 
+        help='frequency of signal from 0-20000, default 440')
+        
     parser.add_option('-v', '--volume', dest='volume', metavar='VOL',
-        default='0.8', help='volume of signal from 0-1, default 0.8')
+        action="store", type="float", default=0.8, 
+        help='volume of signal from 0-1, default 0.8')
+        
     parser.add_option('-w', '--wave', dest='wave', metavar='WAVE',
-        default='0', help='oscillator waveform from 0-8, default 0')
+        action="store", default="sine", choices=tuple(WAVEFORMS),
+        help="oscillator waveform name, default 'sine'")
+        
     parser.add_option('-c', '--stdout', dest='stdout', action='store_true',
         default=False, help='outputs waveforms to stdout, default off')
+        
     parser.add_option('-V', '--visualize', dest='visualize', 
-        action='store_true', default=False, help='enable an X oscilloscope window, default off')
+        action='store_true', default=False, 
+        help='enable an X oscilloscope window, default off')
+        
     parser.add_option('-a', '--audio', dest='audio', action='store_true',
         default=True, help='enable audio output, default on')
+    
     parser.add_option('-q', '--quiet', dest='quiet', action='store_true',
         default=False, help="don't print to stdout or stderr, default off")
     
     opts, args = parser.parse_args()
     
-    f = int(opts.freq)
-    v = float(opts.volume)
-    w = int(opts.wave)
-    sout = bool(opts.stdout)
-    vout = bool(opts.visualize)
-    aout = bool(opts.audio)
+    return (opts.freq, opts.volume, opts.wave, opts.stdout, opts.visualize, 
+                opts.audio, opts.quiet)
+
+
+def main():
+
+    freq, vol, wave, stdout_, visout, audout, quiet = parse_arguments()
     
-    sg = SignalGen(f, v, w, aout, vout, sout)
+    # imported here to avoid gstreamer hijacking command-line arguments.
+    from wavegen import WaveGen, EosException 
+    
+    sg = WaveGen(freq, vol, wave, audout, visout, stdout_, quiet)
 
     sg.start()
     playing = True
-    last_vol = v
+    last_vol = vol
 
     s = raw_display.Screen()
     try:
@@ -91,9 +102,9 @@ left/right=frequency, page up/page down=waveform.'
                 elif 'right' in ip:
                     sg.ws.freq = sg.ws.freq + FREQ_GRANULARITY
                 elif 'page up' in ip:
-                    sg.ws.waveform = sg.ws.waveform + 1
+                    sg.ws.next_waveform()
                 elif 'page down' in ip:
-                    sg.ws.waveform = sg.ws.waveform - 1
+                    sg.ws.previous_waveform()
                 elif 'm' in ip:
                     if playing:
                         last_vol = sg.ws.volume
@@ -103,13 +114,13 @@ left/right=frequency, page up/page down=waveform.'
                         sg.ws.volume = last_vol
                         playing = True
                 
-                if not opts.quiet:
+                if not quiet:
                     line = 'waveform=%s, frequency=%s, volume=%s' % \
                         (sg.ws.waveform, sg.ws.freq, sg.ws.volume)
                     width, height = s.get_cols_rows()
                     blanks = width - len(line)
                     line = line + ' '*blanks + '\r'
-                    if opts.stdout:
+                    if stdout_:
                         sys.stderr.write(line)
                         sys.stderr.flush()
                     else:
@@ -117,6 +128,8 @@ left/right=frequency, page up/page down=waveform.'
                         sys.stdout.flush()
 
             except KeyboardInterrupt: 
+                break
+            except EosException:
                 break
     finally:
         s.stop()

@@ -1,6 +1,12 @@
 This program will generate a waveform at audio ranges (0-20,000Hz). You can 
 change the frequency, volume/amplitude, and waveform type.
 
+This program requires:
+    - Python2       [http://www.python.org/download]
+    - Gstreamer     [http://www.gstreamer.net/download]
+    - gst-python    [http://www.gstreamer.net/modules/gst-python.html]
+    - urwid         [http://excess.org/urwid]
+
 Example usage:
 
 signalgen -f 200 -v 0.5 -w 2 -V
@@ -24,5 +30,13 @@ Options:
   -a, --audio           enable audio output, default on
   -q, --quiet           don't print to stdout or stderr, default off
 
-The program is written in Python and makes use of the Gstreamer element called
-audiotestsrc.
+Installing:
+
+    Run 'python setup.py install' as root.
+    
+Bugs/Todo:
+
+    When using the --visualize option, closing the window causes the audio
+    to stop playing but the program does not exit automatically.  Either the
+    program should exit or the audio should continue to play until the 
+    program is exited normally.

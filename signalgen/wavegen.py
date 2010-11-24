@@ -1,4 +1,4 @@
-# signalgen.py
+# wavegen.py
 # 
 # Copyright 2009 Matthew Brush <mbrush AT leftclick DOT ca>
 # 
@@ -16,19 +16,36 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
 # MA 02110-1301, USA.
+
 import gst
 from wavesource import WaveSource
 
-class SignalGen(object):
+AUDIO_SINK = "autoaudiosink"
+VIDEO_SINK = "autovideosink"
+
+class EosException(Exception): pass
+
+class WaveGen(object):
+    
+    def on_message(self, bus, message):
+        if message.type == gst.MESSAGE_EOS:
+            self.pipeline.set_state(gst.STATE_NULL)
+            raise EosException()
+        elif message.type == gst.MESSAGE_ERROR:
+            self.pipeline.set_state(gst.STATE_NULL)
+            err, debug = message.parse_error()
+            raise EosException("%s: %s" % (err, debug))
     
     def __init__(self, freq=440, volume=0.8, wave=0, audio=True, 
-        visualize=False, stdout=False):
+        visualize=False, stdout=False, quiet=False):
+            
+        self.quiet = False
             
         if not audio and not visualize and not stdout:
             raise Exception('at least one sink/output must be enabled')
     
         # create pipeline
-        self.pipeline = gst.Pipeline('signalgen')
+        self.pipeline = gst.Pipeline('wavegen')
         
         # create audiotestsrc
         self.ws = WaveSource(freq, volume, wave)
@@ -49,7 +66,7 @@ class SignalGen(object):
             self.vqueue = gst.element_factory_make('queue', 'vqueue')
             self.mscope = gst.element_factory_make('monoscope', 'mscope')
             self.color = gst.element_factory_make('ffmpegcolorspace', 'color')
-            self.xsink = gst.element_factory_make('xvimagesink', 'xsink')
+            self.xsink = gst.element_factory_make(VIDEO_SINK, 'xsink')
             
             self.pipeline.add(self.vqueue, self.mscope, self.color, self.xsink)
                 
@@ -74,7 +91,7 @@ class SignalGen(object):
             
             # create audio out elements
             self.aqueue = gst.element_factory_make('queue', 'aqueue')
-            self.asink = gst.element_factory_make('autoaudiosink', 'asink')
+            self.asink = gst.element_factory_make(AUDIO_SINK, 'asink')
             
             #self.pipeline.add(self.asink)
             self.pipeline.add(self.aqueue, self.asink)
@@ -84,7 +101,12 @@ class SignalGen(object):
             self.tee.link(self.aqueue)
             #self.tee.link(self.asink)
 
+        bus = self.pipeline.get_bus()
+        bus.add_signal_watch()
+        bus.connect("message", self.on_message)
+
         #self.pipeline.set_state(gst.STATE_PLAYING)
+        
     def play(self):
         self.start()
     

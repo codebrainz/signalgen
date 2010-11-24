@@ -1,4 +1,4 @@
-# audiogen.py
+# wavesource.py
 # 
 # Copyright 2009 Matthew Brush <mbrush AT leftclick DOT ca>
 # 
@@ -18,24 +18,11 @@
 # MA 02110-1301, USA.
 
 import gst
+from waveforms import WAVEFORMS
 
 class WaveSource(object):
     
     _audiotestsrc = None
-
-#-------------------------------------------------------------------------------
-# constants
-    class Waveforms:
-        """available waveforms"""
-        SINE = 0
-        SQUARE = 1
-        SAW = 2
-        TRIANGLE = 3
-        SILENCE = 4
-        WHITE_NOISE = 5
-        PINK_NOISE = 6
-        SINE_TABLE = 7
-        TICKS = 8
     
 #-------------------------------------------------------------------------------
 # frequency    
@@ -66,19 +53,34 @@ class WaveSource(object):
 
 #-------------------------------------------------------------------------------
 # waveform
-    _wave = 0
+    _wave = "sine"
     def _get_wave(self): return self._wave
     def _set_wave(self, value):
-        if value > 8: value = 8
-        if value < 0: value = 0
+        if value not in WAVEFORMS:
+            raise ValueError(
+                    "waveform must be one of: %s" % ', '.join(WAVEFORMS))
         self._wave = value
         self._audiotestsrc.set_property('wave', self._wave)
     waveform = property(_get_wave, _set_wave, 'change the waveform type')
     
-    
+    def next_waveform(self):
+        index = WAVEFORMS.index(self._wave)
+        if index + 1 > len(WAVEFORMS) - 1:
+            self.waveform = WAVEFORMS[0]
+        else:
+            self.waveform = WAVEFORMS[index+1]
+
+    def previous_waveform(self):
+        index = WAVEFORMS.index(self._wave)
+        if index - 1 < 0:
+            self.waveform = WAVEFORMS[-1]
+        else:
+            self.waveform = WAVEFORMS[index-1]
+#-------------------------------------------------------------------------------
     def __init__(self, freq=500, volume=0.1, wave=0):
         
         self._audiotestsrc = gst.element_factory_make('audiotestsrc', 'audio')
+        self._audiotestsrc.set_property("is-live", True)
         
         self.freq = freq
         self.volume = volume

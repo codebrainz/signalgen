@@ -1,0 +1,8 @@
+#!/usr/bin/env python2
+
+" This script runs the 'signalgen' program. "
+
+if __name__ == "__main__":
+    
+    from signalgen import runner
+    runner.main()
